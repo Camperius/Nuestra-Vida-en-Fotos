@@ -48,12 +48,25 @@ body{ font-family:'Work Sans', sans-serif; color:var(--ink); }
 
 .page{
   height:100%; width:100%; flex:0 0 100%;
-  position:relative; display:flex; flex-direction:column; padding:18px 20px 14px; background:var(--parchment); border-right:1px solid rgba(0,0,0,.05);
+  position:relative; display:flex; flex-direction:column; padding:18px 20px 42px; background:var(--parchment); border-right:1px solid rgba(0,0,0,.05);
   box-sizing: border-box;
 }
 
-.navbtn{ position:absolute; top:50%; transform:translateY(-50%); width:38px; height:38px; border-radius:50%; background:rgba(28,36,48,.7); color:#fff; border:none; font-size:18px; cursor:pointer; z-index:42; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,.3); }
-.navbtn.prev{ left:8px; } .navbtn.next{ right:8px; }
+/* BARRA DE NAVEGACIÓN INFERIOR AL CENTRO */
+.bottom-nav{
+  position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; gap:12px; z-index:42;
+  background:rgba(28,36,48,.85); backdrop-filter:blur(6px);
+  padding:4px 14px; border-radius:20px; border:1px solid rgba(255,255,255,.15);
+  box-shadow:0 4px 12px rgba(0,0,0,.3);
+}
+.navbtn{
+  width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,.15);
+  color:#fff; border:none; font-size:16px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:background .15s;
+}
+.navbtn:active{ background:var(--rose); }
+
 .page.themed{ background: var(--a); color:#fff; }
 
 .page::before{ content:""; position:absolute; inset:0; background-image: radial-gradient(rgba(0,0,0,.045) 1px, transparent 1px); background-size: 3.5px 3.5px; pointer-events:none; opacity:.68; }
@@ -65,7 +78,7 @@ body{ font-family:'Work Sans', sans-serif; color:var(--ink); }
 .tab:hover, .tab:active{ width:auto; max-width:200px; }
 .tab:hover .tab-label, .tab:active .tab-label{ opacity:1; }
 
-.cover{ align-items:center; justify-content:center; text-align:center; background: #1C2430; color:var(--parchment); gap:8px; flex-direction:row; padding:15px 25px; }
+.cover{ align-items:center; justify-content:center; text-align:center; background: #1C2430; color:var(--parchment); gap:8px; flex-direction:row; padding:15px 25px 42px; }
 .cover-left{ width:45%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; }
 .cover-right{ width:55%; height:100%; display:flex; justify-content:center; align-items:center; }
 .cover-frame{ width:92%; height:88%; border:1px solid rgba(246,241,231,.35); padding:5px; position:relative; }
@@ -77,7 +90,7 @@ body{ font-family:'Work Sans', sans-serif; color:var(--ink); }
 
 .days-counter{ font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: rgba(246,241,231,.75); background: rgba(255,255,255,.08); padding: 4px 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,.15); }
 
-.dedication{ align-items:center; justify-content:center; text-align:center; background: var(--parchment-2); gap:10px; flex-direction:row; padding:15px 25px; }
+.dedication{ align-items:center; justify-content:center; text-align:center; background: var(--parchment-2); gap:10px; flex-direction:row; padding:15px 25px 42px; }
 .dedication-left{ width:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
 .dedication-right{ width:50%; height:100%; display:flex; align-items:center; justify-content:center; }
 .dedication .mark{font-size:20px; color:var(--rose);}
@@ -174,8 +187,13 @@ input[type=file]{display:none;}
       <button class="menu-btn" id="printBtn">🖨 PDF</button>
     </div>
     <div id="tabs"></div>
-    <button class="navbtn prev" id="prevBtn">‹</button>
-    <button class="navbtn next" id="nextBtn">›</button>
+    
+    <!-- BARRA DE NAVEGACIÓN INFERIOR AL CENTRO -->
+    <div class="bottom-nav">
+      <button class="navbtn" id="prevBtn">‹</button>
+      <button class="navbtn" id="nextBtn">›</button>
+    </div>
+
     <div id="pagesContainer">
       <div id="pages"></div>
     </div>
