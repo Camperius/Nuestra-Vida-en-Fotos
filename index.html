@@ -43,7 +43,7 @@ body{ font-family:'Work Sans', sans-serif; color:var(--ink); touch-action: pan-y
 
 #stage{ height:100%; width:100%; display:flex; justify-content:center; align-items:center; position:relative; }
 #book{ position:relative; width:100vw; max-width:760px; height:100vh; max-height:480px; background:var(--parchment); box-shadow:var(--shadow); overflow:hidden; }
-#pages{ height:100%; width:100%; display:flex; flex-direction:row; overflow-x:hidden; overflow-y:hidden; position:relative; }
+#pages{ height:100%; width:100%; display:flex; flex-direction:row; overflow:hidden; position:relative; }
 
 .page{
   height:100%; width:100vw; max-width:760px; flex:0 0 100%;
@@ -290,7 +290,7 @@ input[type=file]{display:none;}
     setDoc(docRef, { data: JSON.stringify(state) }).then(()=>{
       syncStatus.textContent = '☁️ Sincronizado';
     }).catch(()=>{
-      syncStatus.textContent = '⚠️ Error al guardar';
+      syncStatus.textContent = '⚠️ Error al guardar (exceso de peso)';
     });
   }
 
@@ -298,20 +298,33 @@ input[type=file]{display:none;}
     onSnapshot(docRef, (docSnap)=>{
       if(docSnap.exists()){
         const rawData = docSnap.data().data;
-        if(rawData && rawData !== "{}"){
-          try { state = JSON.parse(rawData); } catch(e){}
+        if(rawData && rawData !== "{}" && rawData.trim() !== ""){
+          try { 
+            state = JSON.parse(rawData); 
+          } catch(e){
+            console.error("Error al leer datos:", e);
+            state = defaultState();
+          }
+        } else {
+          state = defaultState();
         }
         render();
         syncStatus.textContent = '☁️ Sincronizado';
       } else {
         saveCloud();
       }
+    }, (err)=>{
+      console.error(err);
+      state = defaultState();
+      render();
     });
   }
 
   function allPageDescriptors(){
     const descriptors = [{kind:'cover'}, {kind:'dedication'}, {kind:'index'}];
-    state.pages.forEach(p=> descriptors.push({kind:'page', pageId:p.id}));
+    if(state && state.pages){
+      state.pages.forEach(p=> descriptors.push({kind:'page', pageId:p.id}));
+    }
     descriptors.push({kind:'newcat'});
     return descriptors;
   }
@@ -405,18 +418,20 @@ input[type=file]{display:none;}
     page.innerHTML = '<h2>Contenido</h2><div class="idx-title display">Índice</div>';
     const list = document.createElement('div'); list.className='idx-list';
 
-    state.categories.forEach(cat=>{
-      const catPages = state.pages.filter(p=>p.categoryId===cat.id);
-      if(catPages.length > 0) {
-        const row = document.createElement('div'); row.className='idx-row';
-        row.innerHTML = `<span class="dot" style="--c:${cat.colorA}"></span><span class="name">${cat.name}</span><span class="count">${catPages.length} pág</span>`;
-        row.onclick = ()=>{
-          const fp = state.pages.find(p=>p.categoryId===cat.id);
-          if(fp) scrollToPageId(fp.id);
-        };
-        list.appendChild(row);
-      }
-    });
+    if(state && state.categories){
+      state.categories.forEach(cat=>{
+        const catPages = state.pages ? state.pages.filter(p=>p.categoryId===cat.id) : [];
+        if(catPages.length > 0) {
+          const row = document.createElement('div'); row.className='idx-row';
+          row.innerHTML = `<span class="dot" style="--c:${cat.colorA}"></span><span class="name">${cat.name}</span><span class="count">${catPages.length} pág</span>`;
+          row.onclick = ()=>{
+            const fp = state.pages.find(p=>p.categoryId===cat.id);
+            if(fp) scrollToPageId(fp.id);
+          };
+          list.appendChild(row);
+        }
+      });
+    }
 
     const addCatBtn = document.createElement('button'); addCatBtn.className='idx-add'; addCatBtn.textContent='+ Nueva sección';
     addCatBtn.onclick = ()=> goToPageIndex(allPageDescriptors().length - 1);
@@ -426,8 +441,9 @@ input[type=file]{display:none;}
 
   function renderPage(pageId){
     const page = state.pages.find(p=>p.id===pageId);
-    const cat = state.categories.find(c=>c.id===page.categoryId) || BASE_CATEGORIES[0];
+    if(!page) return document.createElement('div');
 
+    const cat = state.categories.find(c=>c.id===page.categoryId) || BASE_CATEGORIES[0];
     const el = document.createElement('div'); el.className = 'page themed sec-page'; el.style.setProperty('--a', cat.colorA);
 
     const favBtn = document.createElement('button'); favBtn.className='fav-btn';
@@ -560,7 +576,7 @@ input[type=file]{display:none;}
     return page;
   }
 
-  function compressAndResizeImage(file, maxWidth = 800, quality = 0.7) {
+  function compressAndResizeImage(file, maxWidth = 600, quality = 0.5) {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -587,7 +603,7 @@ input[type=file]{display:none;}
 
   async function handleFile(file){
     if(!file) return;
-    syncStatus.textContent = '☁️ Procesando...';
+    syncStatus.textContent = '☁️ Compresionando e insertando...';
     let dataUrl;
     if(file.type.startsWith('image/')){
       dataUrl = await compressAndResizeImage(file);
@@ -646,19 +662,21 @@ input[type=file]{display:none;}
     indexTab.onclick = ()=> goToPageIndex(2);
     tabsEl.appendChild(indexTab);
 
-    state.categories.forEach(cat=>{
-      const count = state.pages.filter(p=>p.categoryId===cat.id).length;
-      if(count > 0) {
-        const t = document.createElement('div'); t.className='tab';
-        t.style.setProperty('--tabcolor', cat.colorA);
-        t.innerHTML = `<span class="tab-label">${cat.name} · ${count}</span>`;
-        t.onclick = ()=>{
-          const fp = state.pages.find(p=>p.categoryId===cat.id);
-          if(fp) scrollToPageId(fp.id);
-        };
-        tabsEl.appendChild(t);
-      }
-    });
+    if(state && state.categories){
+      state.categories.forEach(cat=>{
+        const count = state.pages ? state.pages.filter(p=>p.categoryId===cat.id).length : 0;
+        if(count > 0) {
+          const t = document.createElement('div'); t.className='tab';
+          t.style.setProperty('--tabcolor', cat.colorA);
+          t.innerHTML = `<span class="tab-label">${cat.name} · ${count}</span>`;
+          t.onclick = ()=>{
+            const fp = state.pages.find(p=>p.categoryId===cat.id);
+            if(fp) scrollToPageId(fp.id);
+          };
+          tabsEl.appendChild(t);
+        }
+      });
+    }
   }
 
   function scrollToPageId(id){
@@ -675,7 +693,6 @@ input[type=file]{display:none;}
     pagesEl.style.transition = 'transform 0.3s ease-in-out';
   }
 
-  // CONTROLES DE NAVEGACIÓN Y GESTOS TÁCTILES (SWIPE)
   document.getElementById('prevBtn').onclick = ()=> goToPageIndex(currentPageIdx - 1);
   document.getElementById('nextBtn').onclick = ()=> goToPageIndex(currentPageIdx + 1);
 
