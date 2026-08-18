@@ -52,7 +52,6 @@ body{ font-family:'Work Sans', sans-serif; color:var(--ink); }
   box-sizing: border-box;
 }
 
-/* BARRA DE NAVEGACIÓN INFERIOR AL CENTRO */
 .bottom-nav{
   position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
   display:flex; align-items:center; gap:12px; z-index:42;
@@ -170,6 +169,27 @@ body{ font-family:'Work Sans', sans-serif; color:var(--ink); }
 #lightbox .lb-prev{left:10px;} #lightbox .lb-next{right:10px;}
 
 input[type=file]{display:none;}
+
+/* REGLAS EXCLUSIVAS PARA EXPORTAR A PDF COMPLETO */
+@media print {
+  html, body { height:auto !important; width:100% !important; overflow:visible !important; background:#fff !important; }
+  #stage, #book, #pagesContainer { height:auto !important; width:100% !important; max-width:none !important; overflow:visible !important; display:block !important; position:static !important; box-shadow:none !important; }
+  #pages { display:block !important; transform:none !important; height:auto !important; }
+  .page { 
+    page-break-after: always !important; 
+    page-break-inside: avoid !important; 
+    height: 100vh !important; 
+    width: 100% !important; 
+    box-shadow: none !important; 
+    border: none !important; 
+    position: relative !important; 
+    display: flex !important; 
+    margin: 0 !important; 
+    padding: 20px !important;
+  }
+  .new-sec-page { display: none !important; } /* Oculta la página de 'Crear Sección' en el PDF */
+  .bottom-nav, #tabs, #quickMenu, .sec-controls, .remove, .fav-btn, .audio-controls, #syncStatus, #lockScreen, .idx-add { display:none !important; }
+}
 </style>
 </head>
 <body>
@@ -188,7 +208,6 @@ input[type=file]{display:none;}
     </div>
     <div id="tabs"></div>
     
-    <!-- BARRA DE NAVEGACIÓN INFERIOR AL CENTRO -->
     <div class="bottom-nav">
       <button class="navbtn" id="prevBtn">‹</button>
       <button class="navbtn" id="nextBtn">›</button>
