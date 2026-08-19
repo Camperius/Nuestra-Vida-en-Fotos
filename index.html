@@ -134,10 +134,6 @@ body{ font-family:'Work Sans', sans-serif; color:var(--ink); }
 .slot-tools{ display:flex; align-items:center; justify-content:space-between; gap:2px; font-size:8.5px; opacity:.85; }
 .slot-meta{ flex:1; outline:none; text-align:center; border-bottom:1px dashed transparent; min-height:10px; white-space:nowrap; overflow:hidden; }
 
-.audio-controls{ display:flex; align-items:center; gap:2px; }
-.tool-btn{ background:none; border:none; color:#fff; font-size:10px; cursor:pointer; padding:1px; opacity:.85; }
-.tool-btn.recording{ background:#e74c3c; color:#fff; font-size:7.5px; padding:1px 3px; border-radius:3px; }
-
 .note-box{ background: rgba(255,255,255,.14); border: 1px dashed rgba(255,255,255,.5); border-radius: var(--radius); padding: 5px 6px; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
 .note-box .note-title{ font-size: 8px; text-transform: uppercase; letter-spacing: .1em; opacity: .8; font-weight:600; }
 .note-box .note-content{ font-family: 'Caveat', cursive; font-size: 14px; line-height: 1.1; flex: 1; outline: none; color: #fff; overflow-y: auto; }
@@ -199,7 +195,7 @@ input[type=file]{display:none;}
 </div>
 
 <div id="syncStatus">☁️ Conectando...</div>
-<input type="file" id="fileInput" accept="image/*">
+<input type="file" id="fileInput" accept="image/*,video/*">
 
 <div id="lightbox">
   <button class="lb-close" id="lbClose">✕</button>
@@ -222,6 +218,10 @@ input[type=file]{display:none;}
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+
+  // CONFIGURACIÓN DE CLOUDINARY
+  const CLOUDINARY_CLOUD_NAME = "rgmxhatk"; // <--- Tu Cloud Name
+  const CLOUDINARY_UPLOAD_PRESET = "nuestravida_preset"; // <--- Tu Upload Preset (Unsigned)
 
   const SECRET_PIN = "2811";
   const docRef = doc(db, "albumData", "sharedAlbum");
@@ -312,7 +312,7 @@ input[type=file]{display:none;}
       syncStatus.textContent = '☁️ Sincronizado';
     } catch (err) {
       console.error("Error guardando en Firestore:", err);
-      syncStatus.textContent = '⚠️ Error: Foto muy pesada';
+      syncStatus.textContent = '⚠️ Error al guardar';
     } finally {
       setTimeout(() => { isEditing = false; }, 1500);
     }
@@ -390,8 +390,8 @@ input[type=file]{display:none;}
     const slot = document.createElement('div'); slot.className='cover-photo-slot';
     
     if(state.cover.photo){
-      const elMedia = document.createElement('img');
-      elMedia.src = state.cover.photo.data; slot.appendChild(elMedia);
+      const elMedia = state.cover.photo.type === 'video' ? document.createElement('video') : document.createElement('img');
+      elMedia.src = state.cover.photo.data; if(state.cover.photo.type === 'video') elMedia.autoplay = true; slot.appendChild(elMedia);
       const rm = document.createElement('button'); rm.className='remove'; rm.textContent='✕';
       rm.onclick = (e)=>{ e.stopPropagation(); state.cover.photo = null; render(); saveCloud(); };
       slot.appendChild(rm);
@@ -418,7 +418,7 @@ input[type=file]{display:none;}
     const slot = document.createElement('div'); slot.className='dedication-slot';
     
     if(state.dedication.photo){
-      const elMedia = document.createElement('img');
+      const elMedia = state.dedication.photo.type === 'video' ? document.createElement('video') : document.createElement('img');
       elMedia.src = state.dedication.photo.data; slot.appendChild(elMedia);
       const rm = document.createElement('button'); rm.className='remove'; rm.textContent='✕';
       rm.onclick = (e)=>{ e.stopPropagation(); state.dedication.photo = null; render(); saveCloud(); };
@@ -491,14 +491,14 @@ input[type=file]{display:none;}
       const slotEl = document.createElement('div'); slotEl.className='slot'+(sl.data?' filled':'');
       
       if(sl.data){
-        const elMedia = document.createElement('img');
+        const elMedia = sl.type === 'video' ? document.createElement('video') : document.createElement('img');
         elMedia.src=sl.data; slotEl.appendChild(elMedia);
         const rm = document.createElement('button'); rm.className='remove'; rm.textContent='✕';
         rm.onclick = (e)=>{ e.stopPropagation(); sl.data=null; render(); saveCloud(); };
         slotEl.appendChild(rm);
         slotEl.onclick = ()=> openLightbox(pageId, idx);
       } else {
-        slotEl.innerHTML = '<div class="empty-hint">+ foto</div>';
+        slotEl.innerHTML = '<div class="empty-hint">+ foto/video</div>';
         slotEl.onclick = ()=>{ activeSlotTarget={pageId, slotIndex:idx}; document.getElementById('fileInput').click(); };
       }
 
@@ -579,46 +579,42 @@ input[type=file]{display:none;}
     return page;
   }
 
-  // COMPRESOR REFORZADO POR CANVAS (Garantiza fotos super livianas < 30KB)
-  function compressFile(file) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        const canvas = document.createElement('canvas');
-        let maxW = 400;
-        let scale = maxW / img.width;
-        if(scale > 1) scale = 1;
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.35));
-      };
-      img.onerror = reject;
-      img.src = url;
-    });
-  }
-
+  // FUNCIÓN SUBIDA GRATUITA A CLOUDINARY (Fotos y Videos)
   async function handleFile(file){
     if(!file) return;
-    syncStatus.textContent = '☁️ Procesando...';
+    syncStatus.textContent = '☁️ Subiendo a Cloudinary...';
     try {
-      const compressedDataUrl = await compressFile(file);
-      if(activeSlotTarget==='cover') state.cover.photo = {type:'image', data: compressedDataUrl};
-      else if(activeSlotTarget==='dedication') state.dedication.photo = {type:'image', data: compressedDataUrl};
+      const isVideo = file.type.startsWith('video/');
+      const resourceType = isVideo ? 'video' : 'image';
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+
+      if(!data.secure_url) throw new Error("Error subiendo a Cloudinary");
+
+      const mediaUrl = data.secure_url;
+      const type = isVideo ? 'video' : 'image';
+
+      if(activeSlotTarget==='cover') state.cover.photo = {type, data: mediaUrl};
+      else if(activeSlotTarget==='dedication') state.dedication.photo = {type, data: mediaUrl};
       else if(activeSlotTarget){
         const {pageId, slotIndex} = activeSlotTarget;
         const p = state.pages.find(p=>p.id===pageId);
-        if(p && p.slots[slotIndex]) { p.slots[slotIndex].type = 'image'; p.slots[slotIndex].data = compressedDataUrl; }
+        if(p && p.slots[slotIndex]) { p.slots[slotIndex].type = type; p.slots[slotIndex].data = mediaUrl; }
       }
       activeSlotTarget = null;
       render();
       await saveCloud();
     } catch(e) {
-      console.error(e);
-      syncStatus.textContent = '⚠️ Error procesando la foto';
+      console.error("Error al subir a Cloudinary:", e);
+      syncStatus.textContent = '⚠️ Error: Revisa Cloud Name o Preset';
     }
   }
 
@@ -682,8 +678,8 @@ input[type=file]{display:none;}
     const { filledSlots, index } = currentLbState;
     const slot = filledSlots[index];
     const container = document.getElementById('lbMedia'); container.innerHTML = '';
-    const elMedia = document.createElement('img');
-    elMedia.src = slot.data;
+    const elMedia = slot.type === 'video' ? document.createElement('video') : document.createElement('img');
+    elMedia.src = slot.data; if(slot.type === 'video'){ elMedia.controls = true; elMedia.autoplay = true; }
     container.appendChild(elMedia);
   }
 
