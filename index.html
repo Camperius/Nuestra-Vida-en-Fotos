@@ -170,7 +170,6 @@ body{ font-family:'Work Sans', sans-serif; color:var(--ink); }
 
 input[type=file]{display:none;}
 
-/* REGLAS EXCLUSIVAS PARA EXPORTAR A PDF COMPLETO */
 @media print {
   html, body { height:auto !important; width:100% !important; overflow:visible !important; background:#fff !important; }
   #stage, #book, #pagesContainer { height:auto !important; width:100% !important; max-width:none !important; overflow:visible !important; display:block !important; position:static !important; box-shadow:none !important; }
@@ -187,7 +186,7 @@ input[type=file]{display:none;}
     margin: 0 !important; 
     padding: 20px !important;
   }
-  .new-sec-page { display: none !important; } /* Oculta la página de 'Crear Sección' en el PDF */
+  .new-sec-page { display: none !important; }
   .bottom-nav, #tabs, #quickMenu, .sec-controls, .remove, .fav-btn, .audio-controls, #syncStatus, #lockScreen, .idx-add { display:none !important; }
 }
 </style>
@@ -248,6 +247,7 @@ input[type=file]{display:none;}
   const docRef = doc(db, "albumData", "sharedAlbum");
 
   let currentPageIdx = 0;
+  let isSavingLocal = false; // Bandera para evitar que Firebase borre lo que acabas de subir
   const lockScreen = document.getElementById('lockScreen');
   const pinInput = document.getElementById('pinInput');
   const unlockBtn = document.getElementById('unlockBtn');
@@ -326,16 +326,21 @@ input[type=file]{display:none;}
   const syncStatus = document.getElementById('syncStatus');
 
   function saveCloud(){
+    isSavingLocal = true;
     syncStatus.textContent = '☁️ Guardando...';
     setDoc(docRef, { data: JSON.stringify(state) }).then(()=>{
       syncStatus.textContent = '☁️ Sincronizado';
-    }).catch(()=>{
-      syncStatus.textContent = '⚠️ Error al guardar';
+      setTimeout(()=>{ isSavingLocal = false; }, 2000);
+    }).catch((err)=>{
+      console.error("Error en setDoc:", err);
+      syncStatus.textContent = '⚠️ Imagen muy grande o error de red';
+      isSavingLocal = false;
     });
   }
 
   function initFirebaseSync(){
     onSnapshot(docRef, (docSnap)=>{
+      if(isSavingLocal) return; // Si estamos guardando una foto nueva, ignoramos lecturas remotas para evitar el parpadeo
       if(docSnap.exists()){
         const rawData = docSnap.data().data;
         if(rawData && rawData !== "{}" && rawData.trim() !== ""){
@@ -353,8 +358,10 @@ input[type=file]{display:none;}
         saveCloud();
       }
     }, (err)=>{
-      state = defaultState();
-      render();
+      if(!isSavingLocal){
+        state = defaultState();
+        render();
+      }
     });
   }
 
@@ -614,7 +621,8 @@ input[type=file]{display:none;}
     return page;
   }
 
-  function compressAndResizeImage(file, maxWidth = 600, quality = 0.5) {
+  // Compresión optimizada para asegurarle fluidez y ligereza a Firestore
+  function compressAndResizeImage(file, maxWidth = 500, quality = 0.4) {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -658,7 +666,8 @@ input[type=file]{display:none;}
       if(p && p.slots[slotIndex]) { p.slots[slotIndex].type = type; p.slots[slotIndex].data = dataUrl; }
     }
     activeSlotTarget = null;
-    saveCloud(); render();
+    render();
+    saveCloud();
   }
 
   document.getElementById('fileInput').onchange = e=> handleFile(e.target.files[0]);
@@ -677,7 +686,8 @@ input[type=file]{display:none;}
         reader.onloadend = () => {
           slot.audioNote = reader.result;
           slot.isRecording = false;
-          saveCloud(); render();
+          render();
+          saveCloud();
         };
         reader.readAsDataURL(audioBlob);
         stream.getTracks().forEach(track => track.stop());
