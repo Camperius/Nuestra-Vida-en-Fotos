@@ -165,6 +165,67 @@ body{ font-family:'Work Sans', sans-serif; color:var(--ink); }
 #lightbox .lb-prev{left:10px;} #lightbox .lb-next{right:10px;}
 
 input[type=file]{display:none;}
+
+/* ESTILOS DE IMPRESIÓN COMPLETA (PDF) */
+body.printing-mode {
+  overflow: visible !important;
+  height: auto !important;
+  background: #fff !important;
+}
+body.printing-mode #stage,
+body.printing-mode #book,
+body.printing-mode #pagesContainer {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  position: static !important;
+  box-shadow: none !important;
+}
+body.printing-mode #pages {
+  display: block !important;
+  transform: none !important;
+  height: auto !important;
+}
+body.printing-mode .page {
+  page-break-after: always !important;
+  page-break-inside: avoid !important;
+  height: 100vh !important;
+  min-height: 480px !important;
+  width: 100% !important;
+  margin-bottom: 20px !important;
+  position: relative !important;
+}
+body.printing-mode .new-sec-page,
+body.printing-mode .bottom-nav,
+body.printing-mode #tabs,
+body.printing-mode #quickMenu,
+body.printing-mode .sec-controls,
+body.printing-mode .remove,
+body.printing-mode .fav-btn,
+body.printing-mode #syncStatus,
+body.printing-mode #lockScreen,
+body.printing-mode .idx-add {
+  display: none !important;
+}
+
+@media print {
+  html, body { height:auto !important; width:100% !important; overflow:visible !important; background:#fff !important; }
+  #stage, #book, #pagesContainer { height:auto !important; width:100% !important; max-width:none !important; overflow:visible !important; display:block !important; position:static !important; box-shadow:none !important; }
+  #pages { display:block !important; transform:none !important; height:auto !important; }
+  .page { 
+    page-break-after: always !important; 
+    page-break-inside: avoid !important; 
+    height: 100vh !important; 
+    width: 100% !important; 
+    box-shadow: none !important; 
+    border: none !important; 
+    position: relative !important; 
+    display: flex !important; 
+    margin: 0 !important; 
+    padding: 20px !important;
+  }
+  .new-sec-page, .bottom-nav, #tabs, #quickMenu, .sec-controls, .remove, .fav-btn, #syncStatus, #lockScreen, .idx-add { display:none !important; }
+}
 </style>
 </head>
 <body>
@@ -219,9 +280,9 @@ input[type=file]{display:none;}
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // CONFIGURACIÓN DE CLOUDINARY
-  const CLOUDINARY_CLOUD_NAME = "rgmxhatk"; // <--- Tu Cloud Name
-  const CLOUDINARY_UPLOAD_PRESET = "nuestravida_preset"; // <--- Tu Upload Preset (Unsigned)
+  // CONFIGURACIÓN DE CLOUDINARY ACTUALIZADA
+  const CLOUDINARY_CLOUD_NAME = "rgmxhatk"; 
+  const CLOUDINARY_UPLOAD_PRESET = "nuestravida_preset"; 
 
   const SECRET_PIN = "2811";
   const docRef = doc(db, "albumData", "sharedAlbum");
@@ -620,7 +681,16 @@ input[type=file]{display:none;}
 
   document.getElementById('fileInput').onchange = e=> handleFile(e.target.files[0]);
 
-  document.getElementById('printBtn').onclick = ()=> window.print();
+  // MANEJADOR MULTIDISPOSITIVO PARA PDF
+  document.getElementById('printBtn').onclick = () => {
+    document.body.classList.add('printing-mode');
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        document.body.classList.remove('printing-mode');
+      }, 500);
+    }, 300);
+  };
 
   function renderTabs(){
     tabsEl.innerHTML='';
