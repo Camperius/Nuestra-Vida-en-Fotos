@@ -209,7 +209,14 @@ body.printing-mode .idx-add {
 }
 
 @media print {
-  html, body { height:auto !important; width:100% !important; overflow:visible !important; background:#fff !important; }
+  html, body { 
+    height:auto !important; 
+    width:100% !important; 
+    overflow:visible !important; 
+    background:#11151b !important; 
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
   #stage, #book, #pagesContainer { height:auto !important; width:100% !important; max-width:none !important; overflow:visible !important; display:block !important; position:static !important; box-shadow:none !important; }
   #pages { display:block !important; transform:none !important; height:auto !important; }
   .page { 
@@ -223,7 +230,10 @@ body.printing-mode .idx-add {
     display: flex !important; 
     margin: 0 !important; 
     padding: 20px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
+  .page::before, .page::after { display: none !important; }
   .new-sec-page, .bottom-nav, #tabs, #quickMenu, .sec-controls, .remove, .fav-btn, #syncStatus, #lockScreen, .idx-add { display:none !important; }
 }
 </style>
@@ -280,7 +290,6 @@ body.printing-mode .idx-add {
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // CONFIGURACIÓN DE CLOUDINARY ACTUALIZADA
   const CLOUDINARY_CLOUD_NAME = "rgmxhatk"; 
   const CLOUDINARY_UPLOAD_PRESET = "nuestravida_preset"; 
 
@@ -454,7 +463,12 @@ body.printing-mode .idx-add {
       const elMedia = state.cover.photo.type === 'video' ? document.createElement('video') : document.createElement('img');
       elMedia.src = state.cover.photo.data; if(state.cover.photo.type === 'video') elMedia.autoplay = true; slot.appendChild(elMedia);
       const rm = document.createElement('button'); rm.className='remove'; rm.textContent='✕';
-      rm.onclick = (e)=>{ e.stopPropagation(); state.cover.photo = null; render(); saveCloud(); };
+      rm.onclick = (e)=>{ 
+        e.stopPropagation(); 
+        if(confirm("¿Estás seguro de que quieres eliminar esta foto de la portada?")){
+          state.cover.photo = null; render(); saveCloud(); 
+        }
+      };
       slot.appendChild(rm);
     } else {
       slot.innerHTML = '<div class="hint">Toca para subir foto principal</div>';
@@ -482,7 +496,12 @@ body.printing-mode .idx-add {
       const elMedia = state.dedication.photo.type === 'video' ? document.createElement('video') : document.createElement('img');
       elMedia.src = state.dedication.photo.data; slot.appendChild(elMedia);
       const rm = document.createElement('button'); rm.className='remove'; rm.textContent='✕';
-      rm.onclick = (e)=>{ e.stopPropagation(); state.dedication.photo = null; render(); saveCloud(); };
+      rm.onclick = (e)=>{ 
+        e.stopPropagation(); 
+        if(confirm("¿Estás seguro de que quieres eliminar esta foto de la dedicatoria?")){
+          state.dedication.photo = null; render(); saveCloud(); 
+        }
+      };
       slot.appendChild(rm);
     } else {
       slot.innerHTML = '<span style="font-size:10px; color:#888;">+ Toca foto dedicatoria</span>';
@@ -555,7 +574,12 @@ body.printing-mode .idx-add {
         const elMedia = sl.type === 'video' ? document.createElement('video') : document.createElement('img');
         elMedia.src=sl.data; slotEl.appendChild(elMedia);
         const rm = document.createElement('button'); rm.className='remove'; rm.textContent='✕';
-        rm.onclick = (e)=>{ e.stopPropagation(); sl.data=null; render(); saveCloud(); };
+        rm.onclick = (e)=>{ 
+          e.stopPropagation(); 
+          if(confirm("¿Estás seguro de que quieres eliminar esta foto?")){
+            sl.data=null; render(); saveCloud(); 
+          }
+        };
         slotEl.appendChild(rm);
         slotEl.onclick = ()=> openLightbox(pageId, idx);
       } else {
@@ -595,12 +619,14 @@ body.printing-mode .idx-add {
 
     const delBtn = document.createElement('button'); delBtn.textContent='🗑 Eliminar';
     delBtn.onclick = ()=>{
-      const idx = state.pages.indexOf(page);
-      const prevPage = idx > 0 ? state.pages[idx - 1] : null;
-      state.pages.splice(idx, 1);
-      saveCloud(); render();
-      if(prevPage) scrollToPageId(prevPage.id);
-      else goToPageIndex(2);
+      if(confirm("¿Estás seguro de que quieres eliminar esta hoja completa del álbum?")){
+        const idx = state.pages.indexOf(page);
+        const prevPage = idx > 0 ? state.pages[idx - 1] : null;
+        state.pages.splice(idx, 1);
+        saveCloud(); render();
+        if(prevPage) scrollToPageId(prevPage.id);
+        else goToPageIndex(2);
+      }
     };
 
     controls.appendChild(addBtn); controls.appendChild(delBtn);
