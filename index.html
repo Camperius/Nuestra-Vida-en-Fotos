@@ -388,6 +388,7 @@ body.printing-mode .idx-add {
     }
   }
 
+  // FUNCIÓN CON PROTECCIÓN ANTI-SOBRESCRITURA
   function initFirebaseSync(){
     onSnapshot(docRef, (docSnap)=>{
       if(isEditing) return;
@@ -396,16 +397,12 @@ body.printing-mode .idx-add {
         if(rawData && rawData !== "{}" && rawData.trim() !== ""){
           try { 
             state = JSON.parse(rawData); 
+            render();
+            syncStatus.textContent = '☁️ Sincronizado';
           } catch(e){
-            state = defaultState();
+            console.error("Error al parsear JSON:", e);
           }
-        } else {
-          state = defaultState();
         }
-        render();
-        syncStatus.textContent = '☁️ Sincronizado';
-      } else {
-        saveCloud();
       }
     });
   }
